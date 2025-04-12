@@ -98,6 +98,92 @@ resource "aws_iam_role_policy_attachment" "codebuild_s3_policy" {
   policy_arn = "arn:aws:iam::aws:policy/AmazonS3FullAccess"
 }
 
+resource "aws_iam_role" "codepipeline_role" {
+  name = "codepipeline-role"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Principal = {
+          Service = "codepipeline.amazonaws.com"
+        }
+        Action = "sts:AssumeRole"
+      }
+    ]
+  })
+}
+
+resource "aws_iam_role_policy" "codepipeline_policy" {
+  name = "codepipeline-policy"
+  role = aws_iam_role.codepipeline_role.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "s3:GetObject",
+          "s3:GetObjectVersion",
+          "s3:PutObject"
+        ]
+        Resource = "arn:aws:s3:::${var.artifact_bucket}/*"
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "codebuild:BatchGetBuilds",
+          "codebuild:StartBuild"
+        ]
+        Resource = "*"
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "codedeploy:CreateDeployment",
+          "codedeploy:GetApplication",
+          "codedeploy:GetDeployment",
+          "codedeploy:RegisterApplicationRevision"
+        ]
+        Resource = "*"
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "cloudformation:CreateChangeSet",
+          "cloudformation:DescribeChangeSet",
+          "cloudformation:ExecuteChangeSet",
+          "cloudformation:DescribeStacks",
+          "cloudformation:SetStackPolicy",
+          "cloudformation:ValidateTemplate"
+        ]
+        Resource = "*"
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "iam:PassRole"
+        ]
+        Resource = "*"
+        Condition = {
+          StringEqualsIfExists = {
+            "iam:PassedToService" = [
+              "cloudformation.amazonaws.com",
+              "ec2.amazonaws.com",
+              "ecs-tasks.amazonaws.com",
+              "eks.amazonaws.com",
+              "lambda.amazonaws.com",
+              "codebuild.amazonaws.com"
+            ]
+          }
+        }
+      }
+    ]
+  })
+}
+
 
 # Codepipeline app a
 resource "aws_codepipeline" "app_a_pipeline" {

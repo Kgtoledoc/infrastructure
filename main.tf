@@ -1,5 +1,5 @@
 provider "aws" {
-  region = "us-west-2"
+  region = "us-east-1"
 }
 
 module "networking" {
@@ -14,9 +14,9 @@ module "eks" {
 
 module "codebuild" {
   source        = "./codebuild"
-  app_a_repo    = "https://github.com/your-repo/app-a.git"
-  app_b_repo    = "https://github.com/your-repo/app-b.git"
-  terraform_repo = "https://github.com/your-repo/terraform.git"
+  app_a_repo    = "https://github.com/Kgtoledoc/app-a.git"
+  app_b_repo    = "https://github.com/Kgtoledoc/app-b.git"
+  terraform_repo = "https://github.com/Kgtoledoc/infrastructure.git"
   app_a_ecr_url = module.eks.ecr_app_a_url
   app_b_ecr_url = module.eks.ecr_app_b_url
 }
