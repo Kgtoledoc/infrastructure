@@ -1,0 +1,23 @@
+version: 0.2
+
+phases:
+  install:
+    runtime-versions:
+      terraform: 1.5
+    commands:
+      - echo "Installing Terraform"
+  pre_build:
+    commands:
+      - cd infra
+      - terraform init
+  build:
+    commands:
+      - echo "Planning Terraform changes"
+      - terraform plan -out=tfplan
+  post_build:
+    commands:
+      - echo "Applying Terraform changes"
+      - terraform apply -auto-approve tfplan
+artifacts:
+  files:
+    - '**/*'
