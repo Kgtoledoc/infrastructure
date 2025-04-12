@@ -17,14 +17,22 @@ Este módulo gestiona la infraestructura necesaria para desplegar las aplicacion
 ## Configuración
 
 1. Clona el repositorio:
-git clone <URL_DEL_REPOSITORIO_INFRASTRUCTURE>
-cd infrastructure
+
+```bash
+git clone https://github.com/Kgtoledoc/infrastructure.git
+cd infrastucture
+
+```
 2. Inicializa Terraform:
+```bash
 terraform init
+```
 3. Despliegue
 Ejecuta el siguiente comando para aplicar la configuración de Terraform y desplegar la infraestructura:
+```bash
 terraform plan -out=tfplan
 terraform apply -auto-aprove tfplan
+```
 4. Revisa los cambios propuestos y confirma el despliegue.
 
 ## Almacenamiento del Estado
