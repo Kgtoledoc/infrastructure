@@ -208,7 +208,7 @@ resource "aws_codepipeline" "app_a_pipeline" {
 
       configuration = {
         ConnectionArn   = var.connection_arn
-        FullRepositoryId = "your-repo/app-a"
+        FullRepositoryId = "Kgtoledoc/app_a"
         BranchName      = "main"
       }
     }
@@ -258,7 +258,7 @@ resource "aws_codepipeline" "app_b_pipeline" {
 
       configuration = {
         ConnectionArn   = var.connection_arn
-        FullRepositoryId = "your-repo/app-b"
+        FullRepositoryId = "Kgtoledoc/app_b"
         BranchName      = "main"
       }
     }
@@ -306,7 +306,7 @@ resource "aws_codepipeline" "infra_pipeline" {
 
       configuration = {
         ConnectionArn   = var.connection_arn
-        FullRepositoryId = "your-repo/infrastructure"
+        FullRepositoryId = "Kgtoledoc/infrastructure"
         BranchName      = "main"
       }
     }

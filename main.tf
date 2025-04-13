@@ -1,5 +1,5 @@
 provider "aws" {
-  region = "us-east-1"
+  region = var.region
 }
 
 module "networking" {
@@ -10,6 +10,13 @@ module "eks" {
   source     = "./eks"
   vpc_id     = module.networking.vpc_id
   subnet_ids = module.networking.subnet_ids
+  cluster_name = "cluster-image-processor"
+}
+
+module "alb_controller" {
+  source       = "./alb_controller"
+  cluster_name = module.eks.cluster_name
+  region       = var.region
 }
 
 module "codebuild" {
@@ -30,9 +37,9 @@ terraform {
   }
   required_version = ">= 1.0.0"
   backend "s3" {
-    bucket         = "mi-bucket-de-terraform"
+    bucket         = "bucket-state"
     key            = "terraform/state"
-    region         = "us-west-2"
+    region         = var.region
     dynamodb_table = "terraform-lock"
     encrypt        = true
   }
