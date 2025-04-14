@@ -19,6 +19,14 @@ resource "aws_codebuild_project" "app_a" {
       name  = "ECR_REPO_URL"
       value = var.app_a_ecr_url
     }
+    environment_variable {
+      name  = "CLUSTER_NAME"
+      value = var.cluster_name
+    }
+    environment_variable {
+      name  = "AWS_DEFAULT_REGION"
+      value = var.region
+    }
   }
 }
 
@@ -43,8 +51,55 @@ resource "aws_codebuild_project" "app_b" {
       name  = "ECR_REPO_URL"
       value = var.app_b_ecr_url
     }
+    environment_variable {
+      name  = "CLUSTER_NAME"
+      value = var.cluster_name
+    }
+    environment_variable {
+      name  = "AWS_DEFAULT_REGION"
+      value = var.region
+    }
   }
 }
+
+resource "aws_iam_role" "codebuild_role" {
+  name = "codebuild-role"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Action = "sts:AssumeRole"
+        Effect = "Allow"
+        Principal = {
+          Service = "codebuild.amazonaws.com"
+        }
+      },
+    ]
+  })
+}
+
+resource "aws_iam_role_policy_attachment" "codebuild_policy" {
+  role       = aws_iam_role.codebuild_role.name
+  policy_arn = "arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryPowerUser"
+}
+
+resource "aws_iam_role_policy_attachment" "codebuild_k8s_policy" {
+  role       = aws_iam_role.codebuild_role.name
+  policy_arn = "arn:aws:iam::aws:policy/AmazonEKSClusterPolicy"
+}
+
+resource "aws_iam_role_policy_attachment" "codebuild_s3_policy" {
+  role       = aws_iam_role.codebuild_role.name
+  policy_arn = "arn:aws:iam::aws:policy/AmazonS3FullAccess"
+}
+
+resource "aws_iam_role_policy_attachment" "codebuild_eks_policy" {
+  role       = aws_iam_role.codebuild_role.name
+  policy_arn = "arn:aws:iam::aws:policy/AmazonEKS_CNI_Policy"
+}
+
+
 
 resource "aws_codebuild_project" "terraform" {
   name          = "terraform-build"
