@@ -15,6 +15,7 @@ resource "aws_codebuild_project" "app_a" {
     image                       = "aws/codebuild/standard:5.0"
     type                        = "LINUX_CONTAINER"
     image_pull_credentials_type = "CODEBUILD"
+    privileged_mode = true
     environment_variable {
       name  = "ECR_REPO_URL"
       value = var.app_a_ecr_url
@@ -26,6 +27,10 @@ resource "aws_codebuild_project" "app_a" {
     environment_variable {
       name  = "AWS_DEFAULT_REGION"
       value = var.region
+    }
+    environment_variable {
+      name = "EKS_KUBECTL_ROLE_ARN"
+      value = aws_iam_role.codebuild_role.arn
     }
   }
 }
@@ -47,6 +52,7 @@ resource "aws_codebuild_project" "app_b" {
     image                       = "aws/codebuild/standard:5.0"
     type                        = "LINUX_CONTAINER"
     image_pull_credentials_type = "CODEBUILD"
+    privileged_mode = true
     environment_variable {
       name  = "ECR_REPO_URL"
       value = var.app_b_ecr_url
@@ -59,11 +65,15 @@ resource "aws_codebuild_project" "app_b" {
       name  = "AWS_DEFAULT_REGION"
       value = var.region
     }
+    environment_variable {
+      name = "EKS_KUBECTL_ROLE_ARN"
+      value = aws_iam_role.codebuild_role.arn
+    }
   }
 }
 
 resource "aws_iam_role" "codebuild_role" {
-  name = "codebuild-role"
+  name = "EksCodeBuildKubectlRole"
 
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
@@ -75,8 +85,152 @@ resource "aws_iam_role" "codebuild_role" {
           Service = "codebuild.amazonaws.com"
         }
       },
+      {
+        Action = "sts:AssumeRole"
+        Effect = "Allow"
+        Principal = {
+          AWS = "arn:aws:iam::291247178008:role/EksCodeBuildKubectlRole"
+        }
+      },
     ]
   })
+}
+
+resource "aws_iam_policy" "eks_access_policy" {
+  name        = "EksAccessPolicy"
+  description = "Permisos para que CodeBuild interactúe con EKS"
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "eks:DescribeCluster",
+          "eks:ListClusters",
+          "eks:ListNodegroups",
+          "eks:DescribeNodegroup",
+          "eks:ListFargateProfiles",
+          "eks:DescribeFargateProfile",
+          "eks:ListUpdates",
+          "eks:DescribeUpdate",
+          "eks:UpdateClusterConfig",
+          "eks:UpdateClusterVersion",
+          "eks:CreateNodegroup",
+          "eks:DeleteNodegroup",
+          "eks:TagResource",
+          "eks:UntagResource"
+        ]
+        Resource = "*"
+      },
+      {
+        Effect = "Allow",
+        Action = "sts:AssumeRole",
+        Resource = "arn:aws:iam::291247178008:role/EksCodeBuildKubectlRole"
+      }
+    ]
+  })
+}
+
+resource "aws_iam_role_policy" "codebuild_policy_custom" {
+  name = "codebuild-policy-custom"
+  role = aws_iam_role.codebuild_role.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "s3:GetObject",
+          "s3:GetObjectVersion",
+          "s3:PutObject"
+        ]
+        Resource = "arn:aws:s3:::${aws_s3_bucket.pipeline_artifacts.bucket}/*"
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "codestar-connections:UseConnection",
+          "codestar-connections:GetConnection",
+          "codestar-connections:GetConnectionToken",
+          "codeconnections:UseConnection",
+          "codeconnections:GetConnection",
+          "codeconnections:GetConnectionToken",
+        ]
+        Resource = "*"
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "appconfig:StartDeployment",
+          "appconfig:GetDeployment",
+          "appconfig:StopDeployment"
+        ]
+        Resource = "*"
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "codebuild:BatchGetBuilds",
+          "codebuild:StartBuild"
+        ]
+        Resource = "*"
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "codedeploy:CreateDeployment",
+          "codedeploy:GetApplication",
+          "codedeploy:GetDeployment",
+          "codedeploy:RegisterApplicationRevision",
+          "codeconnections:*",
+          "codepipeline:*",
+          "logs:*",
+          "eks:*",
+          "ecr:*"
+        ]
+        Resource = "*"
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "cloudformation:CreateChangeSet",
+          "cloudformation:DescribeChangeSet",
+          "cloudformation:ExecuteChangeSet",
+          "cloudformation:DescribeStacks",
+          "cloudformation:SetStackPolicy",
+          "cloudformation:ValidateTemplate"
+        ]
+        Resource = "*"
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "iam:PassRole"
+        ]
+        Resource = "*"
+        Condition = {
+          StringEqualsIfExists = {
+            "iam:PassedToService" = [
+              "cloudformation.amazonaws.com",
+              "ec2.amazonaws.com",
+              "ecs-tasks.amazonaws.com",
+              "eks.amazonaws.com",
+              "lambda.amazonaws.com",
+              "codebuild.amazonaws.com"
+            ]
+          }
+        }
+      }
+    ]
+  })
+}
+
+resource "aws_iam_role_policy_attachment" "eks_access_policy" {
+  role = aws_iam_role.codebuild_role.name
+  policy_arn = aws_iam_policy.eks_access_policy.arn
+  
 }
 
 resource "aws_iam_role_policy_attachment" "codebuild_policy" {
@@ -118,6 +272,7 @@ resource "aws_codebuild_project" "terraform" {
     image                       = "aws/codebuild/standard:5.0"
     type                        = "LINUX_CONTAINER"
     image_pull_credentials_type = "CODEBUILD"
+    privileged_mode = true
   }
 }
 
@@ -157,6 +312,27 @@ resource "aws_iam_role_policy" "codepipeline_policy" {
       {
         Effect = "Allow"
         Action = [
+          "codestar-connections:UseConnection",
+          "codestar-connections:GetConnection",
+          "codestar-connections:GetConnectionToken",
+          "codeconnections:UseConnection",
+          "codeconnections:GetConnection",
+          "codeconnections:GetConnectionToken",
+        ]
+        Resource = "*"
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "appconfig:StartDeployment",
+          "appconfig:GetDeployment",
+          "appconfig:StopDeployment"
+        ]
+        Resource = "*"
+      },
+      {
+        Effect = "Allow"
+        Action = [
           "codebuild:BatchGetBuilds",
           "codebuild:StartBuild"
         ]
@@ -169,7 +345,8 @@ resource "aws_iam_role_policy" "codepipeline_policy" {
           "codedeploy:GetApplication",
           "codedeploy:GetDeployment",
           "codedeploy:RegisterApplicationRevision",
-          "codeconnections:*"
+          "codeconnections:*",
+          "codepipeline:*"
         ]
         Resource = "*"
       },
