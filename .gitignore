@@ -20,6 +20,8 @@ terraform.rc
 
 # Ignore directories
 .terraform/
+# Terraform directories
+.terraform/
 
 # Ignore sensitive files
 # Uncomment if you use these files for sensitive variables
