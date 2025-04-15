@@ -9,6 +9,11 @@ variable "public_subnet_ids" {
 }
 
 variable "cluster_name" {
-    description = "Cluster Name"
-    type = string
+  description = "Cluster Name"
+  type        = string
+}
+
+variable "eks_cluster_sg" { 
+  description = "Security group EKS"
+  type = string
 }

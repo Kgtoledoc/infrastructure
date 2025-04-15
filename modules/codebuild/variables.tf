@@ -23,11 +23,6 @@ variable "app_b_ecr_url" {
   type        = string
 }
 
-variable "artifact_bucket" {
-  description = "S3 bucket for storing pipeline artifacts"
-  type        = string
-}
-
 variable "connection_arn" {
   description = "ARN of the CodeStar connection for GitHub"
   type        = string

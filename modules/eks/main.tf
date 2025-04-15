@@ -3,7 +3,8 @@ resource "aws_eks_cluster" "main" {
   role_arn = aws_iam_role.eks_role.arn
 
   vpc_config {
-    subnet_ids = var.private_subnet_ids
+    subnet_ids         = var.private_subnet_ids
+    security_group_ids = [var.eks_cluster_sg]
   }
 
   depends_on = [aws_iam_role_policy_attachment.eks_policy]
@@ -16,12 +17,15 @@ resource "aws_eks_node_group" "node_group" {
   subnet_ids      = var.private_subnet_ids
 
   scaling_config {
-    desired_size = 2
-    max_size     = 3
+    desired_size = 1
+    max_size     = 2
     min_size     = 1
   }
 
-  depends_on = [aws_iam_role_policy_attachment.eks_node_policy]
+  instance_types = ["t3.small"] # Especifica el tipo de instancia aquí
+
+  depends_on = [aws_iam_role_policy_attachment.eks_node_policy, aws_iam_role_policy_attachment.eks_cni_policy, aws_iam_role_policy_attachment.ecr_read_only_policy, aws_iam_role_policy_attachment.alb_ingress_policy
+  ]
 }
 
 resource "aws_iam_role" "eks_role" {
@@ -70,10 +74,15 @@ resource "aws_iam_role_policy_attachment" "eks_node_policy" {
 
 resource "aws_iam_role_policy_attachment" "eks_cni_policy" {
   role       = aws_iam_role.eks_node_role.name
-  policy_arn = "arn:aws:iam::aws:policy/AmazonEKSCNIPolicy"
+  policy_arn = "arn:aws:iam::aws:policy/AmazonEKS_CNI_Policy"
 }
 
 resource "aws_iam_role_policy_attachment" "alb_ingress_policy" {
   role       = aws_iam_role.eks_node_role.name
-  policy_arn = "arn:aws:iam::aws:policy/AWSLoadBalancerControllerIAMPolicy"
+  policy_arn = "arn:aws:iam::aws:policy/AmazonEKSLoadBalancingPolicy"
+}
+
+resource "aws_iam_role_policy_attachment" "ecr_read_only_policy" {
+  role       = aws_iam_role.eks_node_role.name
+  policy_arn = "arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly"
 }

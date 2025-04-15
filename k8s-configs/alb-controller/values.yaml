@@ -1,0 +1,6 @@
+clusterName: cluster-image-processor
+region: us-east-1
+vpcId: vpc-0994369bb6fb5292f
+serviceAccount:
+  create: false
+  name: aws-load-balancer-controller

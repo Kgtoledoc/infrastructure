@@ -1,6 +1,6 @@
 resource "aws_codebuild_project" "app_a" {
-  name          = "app-a-build"
-  service_role  = aws_iam_role.codebuild_role.arn
+  name         = "app-a-build"
+  service_role = aws_iam_role.codebuild_role.arn
   source {
     type            = "GITHUB"
     location        = var.app_a_repo
@@ -31,8 +31,8 @@ resource "aws_codebuild_project" "app_a" {
 }
 
 resource "aws_codebuild_project" "app_b" {
-  name          = "app-b-build"
-  service_role  = aws_iam_role.codebuild_role.arn
+  name         = "app-b-build"
+  service_role = aws_iam_role.codebuild_role.arn
   source {
     type            = "GITHUB"
     location        = var.app_b_repo
@@ -102,8 +102,8 @@ resource "aws_iam_role_policy_attachment" "codebuild_eks_policy" {
 
 
 resource "aws_codebuild_project" "terraform" {
-  name          = "terraform-build"
-  service_role  = aws_iam_role.codebuild_role.arn
+  name         = "terraform-build"
+  service_role = aws_iam_role.codebuild_role.arn
   source {
     type            = "GITHUB"
     location        = var.terraform_repo
@@ -119,38 +119,6 @@ resource "aws_codebuild_project" "terraform" {
     type                        = "LINUX_CONTAINER"
     image_pull_credentials_type = "CODEBUILD"
   }
-}
-
-resource "aws_iam_role" "codebuild_role" {
-  name = "codebuild-role"
-
-  assume_role_policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [
-      {
-        Action = "sts:AssumeRole"
-        Effect = "Allow"
-        Principal = {
-          Service = "codebuild.amazonaws.com"
-        }
-      },
-    ]
-  })
-}
-
-resource "aws_iam_role_policy_attachment" "codebuild_policy" {
-  role       = aws_iam_role.codebuild_role.name
-  policy_arn = "arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryPowerUser"
-}
-
-resource "aws_iam_role_policy_attachment" "codebuild_k8s_policy" {
-  role       = aws_iam_role.codebuild_role.name
-  policy_arn = "arn:aws:iam::aws:policy/AmazonEKSClusterPolicy"
-}
-
-resource "aws_iam_role_policy_attachment" "codebuild_s3_policy" {
-  role       = aws_iam_role.codebuild_role.name
-  policy_arn = "arn:aws:iam::aws:policy/AmazonS3FullAccess"
 }
 
 resource "aws_iam_role" "codepipeline_role" {
@@ -184,7 +152,7 @@ resource "aws_iam_role_policy" "codepipeline_policy" {
           "s3:GetObjectVersion",
           "s3:PutObject"
         ]
-        Resource = "arn:aws:s3:::${var.artifact_bucket}/*"
+        Resource = "arn:aws:s3:::${aws_s3_bucket.pipeline_artifacts.bucket}/*"
       },
       {
         Effect = "Allow"
@@ -200,7 +168,8 @@ resource "aws_iam_role_policy" "codepipeline_policy" {
           "codedeploy:CreateDeployment",
           "codedeploy:GetApplication",
           "codedeploy:GetDeployment",
-          "codedeploy:RegisterApplicationRevision"
+          "codedeploy:RegisterApplicationRevision",
+          "codeconnections:*"
         ]
         Resource = "*"
       },
@@ -239,6 +208,10 @@ resource "aws_iam_role_policy" "codepipeline_policy" {
   })
 }
 
+# S3 artifact bucket
+resource "aws_s3_bucket" "pipeline_artifacts" {
+  bucket = "image-processor-pipeline-artifacts"
+}
 
 # Codepipeline app a
 resource "aws_codepipeline" "app_a_pipeline" {
@@ -246,7 +219,7 @@ resource "aws_codepipeline" "app_a_pipeline" {
   role_arn = aws_iam_role.codepipeline_role.arn
 
   artifact_store {
-    location = var.artifact_bucket
+    location = aws_s3_bucket.pipeline_artifacts.bucket
     type     = "S3"
   }
 
@@ -262,9 +235,9 @@ resource "aws_codepipeline" "app_a_pipeline" {
       output_artifacts = ["source_output"]
 
       configuration = {
-        ConnectionArn   = var.connection_arn
+        ConnectionArn    = var.connection_arn
         FullRepositoryId = "Kgtoledoc/app_a"
-        BranchName      = "main"
+        BranchName       = "main"
       }
     }
   }
@@ -296,7 +269,7 @@ resource "aws_codepipeline" "app_b_pipeline" {
   role_arn = aws_iam_role.codepipeline_role.arn
 
   artifact_store {
-    location = var.artifact_bucket
+    location = aws_s3_bucket.pipeline_artifacts.bucket
     type     = "S3"
   }
 
@@ -312,9 +285,9 @@ resource "aws_codepipeline" "app_b_pipeline" {
       output_artifacts = ["source_output"]
 
       configuration = {
-        ConnectionArn   = var.connection_arn
+        ConnectionArn    = var.connection_arn
         FullRepositoryId = "Kgtoledoc/app_b"
-        BranchName      = "main"
+        BranchName       = "main"
       }
     }
   }
@@ -344,7 +317,7 @@ resource "aws_codepipeline" "infra_pipeline" {
   role_arn = aws_iam_role.codepipeline_role.arn
 
   artifact_store {
-    location = var.artifact_bucket
+    location = aws_s3_bucket.pipeline_artifacts.bucket
     type     = "S3"
   }
 
@@ -360,9 +333,9 @@ resource "aws_codepipeline" "infra_pipeline" {
       output_artifacts = ["source_output"]
 
       configuration = {
-        ConnectionArn   = var.connection_arn
+        ConnectionArn    = var.connection_arn
         FullRepositoryId = "Kgtoledoc/infrastructure"
-        BranchName      = "main"
+        BranchName       = "main"
       }
     }
   }
