@@ -107,4 +107,9 @@ resource "aws_security_group" "eks_cluster_sg" {
     protocol    = "-1"
     cidr_blocks = ["0.0.0.0/0"]
   }
+
+  lifecycle {
+    # This is optional; by default, resources can be destroyed
+    prevent_destroy = false
+  }
 }
